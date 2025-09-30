@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Quiz Educacional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="app"></div>
+
+    <script type="module">
+        import React, { useState, useEffect } from 'https://cdn.skypack.dev/react@18.2.0';
+        import ReactDOM from 'https://cdn.skypack.dev/react-dom@18.2.0/client';
+
+        function QuizSystem() {
+            const [usuarios, setUsuarios] = useState([]);
+            const [questoes, setQuestoes] = useState([
+                {id: 1, materia: "História", pergunta: "Qual evento iniciou a Primeira Guerra Mundial?", opcoes: {a: "Assassinato do Arquiduque", b: "Invasão da Polônia", c: "Ataque a Pearl Harbor", d: "Revolução Russa"}, correta: "a", explicacao: "O assassinato do Arquiduque foi o estopim da guerra."},
+                {id: 2, materia: "Geografia", pergunta: "Maior país da América do Sul?", opcoes: {a: "Argentina", b: "Peru", c: "Brasil", d: "Colômbia"}, correta: "c", explicacao: "O Brasil é o maior país da América do Sul."},
+                {id: 3, materia: "Matemática", pergunta: "Quanto é 5 x 8?", opcoes: {a: "35", b: "40", c: "45", d: "48"}, correta: "b", explicacao: "5 multiplicado por 8 resulta em 40."}
+            ]);
+            const [historicoQuiz, setHistoricoQuiz] = useState([]);
+            const [tela, setTela] = useState('cadastro');
+            const [usuarioLogado, setUsuarioLogado] = useState(null);
+            const [questaoAtual, setQuestaoAtual] = useState(0);
+            const [respostas, setRespostas] = useState({});
+            const [quizFinalizado, setQuizFinalizado] = useState(false);
+            const [pontos, setPontos] = useState(0);
+            const [questoesQuiz, setQuestoesQuiz] = useState([]);
+            const [materiaSelecionada, setMateriaSelecionada] = useState('todas');
+            const [cadastro, setCadastro] = useState({nome: '', usuario: '', senha: '', senha2: '', perfil: 'aluno', professor: ''});
+            const [login, setLogin] = useState({usuario: '', senha: ''});
+            const [novaQuestao, setNovaQuestao] = useState({materia: '', pergunta: '', opcoes: {a: '', b: '', c: '', d: ''}, correta: 'a', explicacao: ''});
+
+            useEffect(() => {
+                const savedUsuarios = localStorage.getItem('usuarios');
+                const savedQuestoes = localStorage.getItem('questoes');
+                const savedHistorico = localStorage.getItem('historicoQuiz');
+                if (savedUsuarios) setUsuarios(JSON.parse(savedUsuarios));
+                if (savedQuestoes) setQuestoes(JSON.parse(savedQuestoes));
+                if (savedHistorico) setHistoricoQuiz(JSON.parse(savedHistorico));
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            }, [usuarios]);
+
+            useEffect(() => {
+                localStorage.setItem('questoes', JSON.stringify(questoes));
+            }, [questoes]);
+
+            useEffect(() => {
+                localStorage.setItem('historicoQuiz', JSON.stringify(historicoQuiz));
+            }, [historicoQuiz]);
+
+            const materias = [...new Set(questoes.map(q => q.materia))];
+
+            const fazerCadastro = () => {
+                if (!cadastro.nome || !cadastro.usuario || !cadastro.senha || !cadastro.senha2) {
+                    alert('Preencha todos os campos!');
+                    return;
+                }
+                if (cadastro.perfil === 'aluno' && !cadastro.professor) {
+                    alert('Aluno precisa informar professor responsável!');
+                    return;
+                }
+                if (cadastro.senha !== cadastro.senha2) {
+                    alert('Senhas diferentes!');
+                    return;
+                }
+                setUsuarios([...usuarios, {...cadastro, id: Date.now()}]);
+                alert('Cadastro realizado!');
+                setCadastro({nome: '', usuario: '', senha: '', senha2: '', perfil: 'aluno', professor: ''});
+                setTela('login');
+            };
+
+            const fazerLogin = () => {
+                const user = usuarios.find(u => u.usuario === login.usuario && u.senha === login.senha);
+                if (user) {
+                    setUsuarioLogado(user);
+                    setTela('menu');
+                } else {
+                    alert('Usuário ou senha incorretos!');
+                }
+            };
+
+            const embaralhar = (arr) => {
+                const array = [...arr];
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            };
+
+            const iniciarQuiz = () => {
+                const filtradas = materiaSelecionada === 'todas' ? questoes : questoes.filter(q => q.materia === materiaSelecionada);
+                if (filtradas.length === 0) {
+                    alert('Não há questões para essa matéria!');
+                    return;
+                }
+                setQuestoesQuiz(embaralhar(filtradas));
+                setTela('quiz');
+                setQuestaoAtual(0);
+                setRespostas({});
+                setQuizFinalizado(false);
+            };
+
+            const finalizarQuiz = () => {
+                let p = 0;
+                questoesQuiz.forEach((q, i) => {
+                    if (respostas[i] === q.correta) p++;
+                });
+                setPontos(p);
+                setQuizFinalizado(true);
+                setHistoricoQuiz([{
+                    id: Date.now(),
+                    usuario: usuarioLogado.nome,
+                    login: usuarioLogado.usuario,
+                    perfil: usuarioLogado.perfil,
+                    professor: usuarioLogado.professor || 'Não informado',
+                    data: new Date().toLocaleString('pt-BR'),
+                    materia: materiaSelecionada,
+                    total: questoesQuiz.length,
+                    acertos: p,
+                    perc: ((p / questoesQuiz.length) * 100).toFixed(1),
+                    questoes: questoesQuiz,
+                    respostas: respostas
+                }, ...historicoQuiz]);
+            };
+
+            const adicionarQuestao = () => {
+                if (!novaQuestao.materia || !novaQuestao.pergunta || !novaQuestao.explicacao) {
+                    alert('Preencha matéria, pergunta e explicação!');
+                    return;
+                }
+                if (!novaQuestao.opcoes.a || !novaQuestao.opcoes.b || !novaQuestao.opcoes.c || !novaQuestao.opcoes.d) {
+                    alert('Preencha todas as 4 opções!');
+                    return;
+                }
+                setQuestoes([...questoes, {...novaQuestao, id: Date.now()}]);
+                setNovaQuestao({materia: '', pergunta: '', opcoes: {a: '', b: '', c: '', d: ''}, correta: 'a', explicacao: ''});
+                alert('Questão adicionada!');
+                setTela('menu');
+            };
+
+            const gerarDOC = () => {
+                const ultimo = historicoQuiz.find(h => h.login === usuarioLogado.usuario);
+                if (!ultimo) {
+                    alert('Faça um quiz primeiro!');
+                    return;
+                }
+                let html = '<html><head><meta charset="utf-8"><title>Relatorio</title></head><body style="font-family:Arial;margin:40px;">';
+                html += '<h1 style="text-align:center;border-bottom:3px solid #000;padding-bottom:20px;">RELATÓRIO QUIZ</h1>';
+                html += '<div style="background:#f5f5f5;padding:20px;margin:20px 0;border:2px solid #ccc;"><h2>INFORMAÇÕES</h2>';
+                html += '<p><strong>Nome:</strong> ' + ultimo.usuario + '</p>';
+                html += '<p><strong>Professor:</strong> ' + ultimo.professor + '</p>';
+                html += '<p><strong>Data:</strong> ' + ultimo.data + '</p>';
+                html += '<p><strong>Matéria:</strong> ' + ultimo.materia + '</p>';
+                html += '<p><strong>Percentual:</strong> <span style="font-size:24px;color:green;font-weight:bold;">' + ultimo.perc + '%</span></p></div>';
+                html += '<h2>QUESTÕES</h2>';
+                ultimo.questoes.forEach((q, i) => {
+                    const resp = ultimo.respostas[i];
+                    const acertou = resp === q.correta;
+                    html += '<div style="border:2px solid #ccc;margin:20px 0;padding:20px;">';
+                    html += '<div style="background:#007bff;color:white;padding:10px;margin:-20px -20px 15px;font-weight:bold;">Questão ' + (i + 1) + '</div>';
+                    html += '<p style="font-weight:bold;">' + q.pergunta + '</p>';
+                    Object.entries(q.opcoes).forEach(([letra, texto]) => {
+                        let estilo = 'margin:10px 0;padding:10px;border:1px solid #ddd;';
+                        let mark = '';
+                        if (letra === resp) {
+                            estilo += acertou ? 'background:#d4edda;border-left:5px solid green;font-weight:bold;' : 'background:#f8d7da;border-left:5px solid red;font-weight:bold;';
+                            mark = acertou ? ' ✓ CORRETA' : ' ✗ INCORRETA';
+                        } else if (letra === q.correta && !acertou) {
+                            estilo += 'background:#d4edda;border-left:5px solid green;font-weight:bold;';
+                            mark = ' ✓ CORRETA';
+                        }
+                        html += '<div style="' + estilo + '"><strong>' + letra.toUpperCase() + ')</strong> ' + texto + mark + '</div>';
+                    });
+                    html += '<div style="background:#e7f3ff;padding:15px;margin-top:15px;"><strong>EXPLICAÇÃO:</strong> ' + q.explicacao + '</div></div>';
+                });
+                html += '</body></html>';
+                const blob = new Blob([html], {type: 'application/msword'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Relatorio-' + ultimo.usuario.replace(/\s+/g, '-') + '.doc';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert('DOC gerado!');
+            };
+
+            const gerarPlanilha = () => {
+                if (historicoQuiz.length === 0) {
+                    alert('Sem histórico!');
+                    return;
+                }
+                let csv = 'Data,Nome,Usuario,Perfil,Professor,Materia,Total,Acertos,Percentual\n';
+                historicoQuiz.forEach(h => {
+                    csv += `"${h.data}","${h.usuario}","${h.login}","${h.perfil}","${h.professor}","${h.materia}",${h.total},${h.acertos},${h.perc}%\n`;
+                });
+                const blob = new Blob([csv], {type: 'text/csv'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'historico-' + new Date().toISOString().slice(0,10) + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert('Planilha gerada!');
+            };
+
+            if (tela === 'cadastro') {
+                return React.createElement('div', {className: 'min-h-screen p-4 flex items-center justify-center'},
+                    React.createElement('div', {className: 'max-w-lg w-full bg-white rounded-lg shadow-lg p-6'},
+                        React.createElement('h1', {className: 'text-3xl font-bold mb-6 text-center'}, 'Cadastro'),
+                        React.createElement('div', {className: 'space-y-4'},
+                            React.createElement('select', {value: cadastro.perfil, onChange: (e) => setCadastro({...cadastro, perfil: e.target.value}), className: 'w-full p-3 border rounded'},
+                                React.createElement('option', {value: 'aluno'}, 'Aluno'),
+                                React.createElement('option', {value: 'professor'}, 'Professor')
+                            ),
+                            React.createElement('input', {type: 'text', value: cadastro.nome, onChange: (e) => setCadastro({...cadastro, nome: e.target.value}), className: 'w-full p-3 border rounded', placeholder: 'Nome completo'}),
+                            React.createElement('input', {type: 'text', value: cadastro.usuario, onChange: (e) => setCadastro({...cadastro, usuario: e.target.value}), className: 'w-full p-3 border rounded', placeholder: 'Usuário'}),
+                            cadastro.perfil === 'aluno' && React.createElement('input', {type: 'text', value: cadastro.professor, onChange: (e) => setCadastro({...cadastro, professor: e.target.value}), className: 'w-full p-3 border rounded bg-blue-50', placeholder: 'Professor Responsável *'}),
+                            React.createElement('input', {type: 'password', value: cadastro.senha, onChange: (e) => setCadastro({...cadastro, senha: e.target.value}), className: 'w-full p-3 border rounded', placeholder: 'Senha'}),
+                            React.createElement('input', {type: 'password', value: cadastro.senha2, onChange: (e) => setCadastro({...cadastro, senha2: e.target.value}), className: 'w-full p-3 border rounded', placeholder: 'Confirmar senha'}),
+                            React.createElement('button', {onClick: fazerCadastro, className: 'w-full py-3 bg-blue-500 text-white rounded font-semibold hover:bg-blue-600'}, 'Criar Conta'),
+                            React.createElement('button', {onClick: () => setTela('login'), className: 'w-full text-blue-500'}, 'Fazer Login')
+                        )
+                    )
+                );
+            }
+
+            if (tela === 'login') {
+                return React.createElement('div', {className: 'min-h-screen p-4 flex items-center justify-center'},
+                    React.createElement('div', {className: 'max-w-md w-full bg-white rounded-lg shadow-lg p-6'},
+                        React.createElement('h1', {className: 'text-3xl font-bold mb-6 text-center'}, 'Login'),
+                        React.createElement('div', {className: 'space-y-4'},
+                            React.createElement('input', {type: 'text', value: login.usuario, onChange: (e) => setLogin({...login, usuario: e.target.value}), className: 'w-full p-3 border rounded', placeholder: 'Usuário'}),
+                            React.createElement('input', {type: 'password', value: login.senha, onChange: (e) => setLogin({...login, senha: e.target.value}), className: 'w-full p-3 border rounded', placeholder: 'Senha'}),
+                            React.createElement('button', {onClick: fazerLogin, className: 'w-full py-3 bg-blue-500 text-white rounded font-semibold hover:bg-blue-600'}, 'Entrar'),
+                            React.createElement('button', {onClick: () => setTela('cadastro'), className: 'w-full text-blue-500'}, 'Criar Conta')
+                        )
+                    )
+                );
+            }
+
+            if (tela === 'menu') {
+                return React.createElement('div', {className: 'min-h-screen p-4'},
+                    React.createElement('div', {className: 'max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6'},
+                        React.createElement('div', {className: 'flex justify-between items-center mb-6 p-4 bg-blue-50 rounded'},
+                            React.createElement('div', null,
+                                React.createElement('h2', {className: 'text-lg font-semibold'}, usuarioLogado.nome),
+                                React.createElement('p', {className: 'text-sm'}, '@' + usuarioLogado.usuario)
+                            ),
+                            React.createElement('button', {onClick: () => {setUsuarioLogado(null); setTela('cadastro');}, className: 'px-4 py-2 text-red-600 border border-red-600 rounded'}, 'Sair')
+                        ),
+                        React.createElement('h1', {className: 'text-3xl font-bold mb-8 text-center'}, 'Quiz Estudos'),
+                        React.createElement('div', {className: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'},
+                            React.createElement('button', {onClick: () => setTela('selecionar-materia'), className: 'bg-blue-500 text-white p-6 rounded-lg hover:bg-blue-600'}, React.createElement('h3', {className: 'font-semibold'}, 'Fazer Quiz')),
+                            usuarioLogado.perfil === 'professor' && React.createElement('button', {onClick: () => setTela('inserir'), className: 'bg-green-500 text-white p-6 rounded-lg hover:bg-green-600'}, React.createElement('h3', {className: 'font-semibold'}, 'Inserir Questão')),
+                            React.createElement('button', {onClick: () => setTela('historico'), className: 'bg-purple-500 text-white p-6 rounded-lg hover:bg-purple-600'}, React.createElement('h3', {className: 'font-semibold'}, 'Histórico')),
+                            React.createElement('button', {onClick: gerarDOC, className: 'bg-orange-500 text-white p-6 rounded-lg hover:bg-orange-600'}, React.createElement('h3', {className: 'font-semibold'}, 'Gerar DOC')),
+                            React.createElement('button', {onClick: gerarPlanilha, className: 'bg-teal-500 text-white p-6 rounded-lg hover:bg-teal-600'}, React.createElement('h3', {className: 'font-semibold'}, 'Gerar Excel'))
+                        )
+                    )
+                );
+            }
+
+            if (tela === 'selecionar-materia') {
+                return React.createElement('div', {className: 'min-h-screen p-4 flex items-center justify-center'},
+                    React.createElement('div', {className: 'max-w-md w-full bg-white rounded-lg shadow-lg p-6'},
+                        React.createElement('h2', {className: 'text-2xl font-bold mb-6'}, 'Escolha a Matéria'),
+                        React.createElement('div', {className: 'space-y-3'},
+                            React.createElement('button', {onClick: () => {setMateriaSelecionada('todas'); iniciarQuiz();}, className: 'w-full p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold'}, 'Todas (Aleatório)'),
+                            materias.map(m => React.createElement('button', {key: m, onClick: () => {setMateriaSelecionada(m); iniciarQuiz();}, className: 'w-full p-4 bg-blue-500 text-white rounded-lg font-semibold'}, m)),
+                            React.createElement('button', {onClick: () => setTela('menu'), className: 'w-full p-4 bg-gray-200 rounded-lg'}, 'Voltar')
+                        )
+                    )
+                );
+            }
+
+            // Continua com as outras telas...
+            return React.createElement('div', null, 'Carregando...');
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('app'));
+        root.render(React.createElement(QuizSystem));
+    </script>
+</body>
+</html>
