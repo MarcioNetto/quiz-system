@@ -11,10 +11,11 @@
     <script>
         // Dados iniciais
         let usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
-        let questoes = JSON.parse(localStorage.getItem('questoes') || '[{"id":1,"materia":"História","pergunta":"Qual evento iniciou a Primeira Guerra Mundial?","opcoes":{"a":"Assassinato do Arquiduque","b":"Invasão da Polônia","c":"Ataque a Pearl Harbor","d":"Revolução Russa"},"correta":"a","explicacao":"O assassinato foi o estopim."},{"id":2,"materia":"Geografia","pergunta":"Maior país da América do Sul?","opcoes":{"a":"Argentina","b":"Peru","c":"Brasil","d":"Colômbia"},"correta":"c","explicacao":"Brasil é o maior."}]');
+        let questoes = JSON.parse(localStorage.getItem('questoes') || '[{"id":1,"materia":"História","pergunta":"Qual evento iniciou a Primeira Guerra Mundial?","opcoes":{"a":"Assassinato do Arquiduque Franz Ferdinand","b":"Invasão da Polônia","c":"Ataque a Pearl Harbor","d":"Revolução Russa"},"correta":"a","explicacao":"O assassinato do Arquiduque foi o estopim da guerra."},{"id":2,"materia":"Geografia","pergunta":"Qual é o maior país da América do Sul?","opcoes":{"a":"Argentina","b":"Peru","c":"Brasil","d":"Colômbia"},"correta":"c","explicacao":"Brasil é o maior país em extensão territorial."},{"id":3,"materia":"Matemática","pergunta":"Quanto é 15 x 8?","opcoes":{"a":"120","b":"130","c":"110","d":"140"},"correta":"a","explicacao":"15 x 8 = 120"},{"id":4,"materia":"Português","pergunta":"Qual é o plural de cidadão?","opcoes":{"a":"Cidadões","b":"Cidadãos","c":"Cidadães","d":"Cidadãoes"},"correta":"b","explicacao":"O plural correto é cidadãos."}]');
         let historico = JSON.parse(localStorage.getItem('historico') || '[]');
         let usuarioLogado = null;
         let tela = 'cadastro';
+        let quizAtual = {materia: '', questoes: [], indice: 0, respostas: []};
 
         // Salvar dados
         function salvar() {
@@ -29,106 +30,329 @@
             app.innerHTML = '';
             
             if (tela === 'cadastro') {
-                app.innerHTML = `
-                    <div class="min-h-screen flex items-center justify-center p-4">
-                        <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-                            <h1 class="text-3xl font-bold text-center mb-6">Cadastro</h1>
-                            <select id="perfil" class="w-full p-3 border rounded mb-4">
-                                <option value="aluno">Aluno</option>
-                                <option value="professor">Professor</option>
-                            </select>
-                            <input type="text" id="nome" placeholder="Nome completo" class="w-full p-3 border rounded mb-4">
-                            <input type="text" id="usuario" placeholder="Usuário" class="w-full p-3 border rounded mb-4">
-                            <input type="text" id="professor" placeholder="Professor Responsável" class="w-full p-3 border rounded mb-4 bg-blue-50">
-                            <input type="password" id="senha" placeholder="Senha" class="w-full p-3 border rounded mb-4">
-                            <input type="password" id="senha2" placeholder="Confirmar senha" class="w-full p-3 border rounded mb-4">
-                            <button onclick="cadastrar()" class="w-full bg-blue-500 text-white p-3 rounded font-semibold hover:bg-blue-600">Criar Conta</button>
-                            <button onclick="tela='login';render()" class="w-full text-blue-500 mt-4">Fazer Login</button>
-                        </div>
-                    </div>
-                `;
+                renderCadastro();
             } else if (tela === 'login') {
-                app.innerHTML = `
-                    <div class="min-h-screen flex items-center justify-center p-4">
-                        <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-                            <h1 class="text-3xl font-bold text-center mb-6">Login</h1>
-                            <input type="text" id="usuario" placeholder="Usuário" class="w-full p-3 border rounded mb-4">
-                            <input type="password" id="senha" placeholder="Senha" class="w-full p-3 border rounded mb-4">
-                            <button onclick="login()" class="w-full bg-blue-500 text-white p-3 rounded font-semibold hover:bg-blue-600">Entrar</button>
-                            <button onclick="tela='cadastro';render()" class="w-full text-blue-500 mt-4">Criar Conta</button>
-                        </div>
-                    </div>
-                `;
+                renderLogin();
             } else if (tela === 'menu') {
-                const materias = [...new Set(questoes.map(q => q.materia))];
-                app.innerHTML = `
-                    <div class="min-h-screen p-4">
-                        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
-                            <div class="flex justify-between items-center mb-6 p-4 bg-blue-50 rounded">
-                                <div>
-                                    <h2 class="text-lg font-semibold">${usuarioLogado.nome}</h2>
-                                    <p class="text-sm">@${usuarioLogado.usuario}</p>
-                                </div>
-                                <button onclick="sair()" class="px-4 py-2 text-red-600 border border-red-600 rounded">Sair</button>
-                            </div>
-                            <h1 class="text-3xl font-bold text-center mb-8">Quiz Estudos</h1>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <button onclick="tela='selecionar';render()" class="bg-blue-500 text-white p-6 rounded-lg hover:bg-blue-600">
-                                    <h3 class="font-semibold">Fazer Quiz</h3>
-                                </button>
-                                ${usuarioLogado.perfil === 'professor' ? `
-                                <button onclick="tela='inserir';render()" class="bg-green-500 text-white p-6 rounded-lg hover:bg-green-600">
-                                    <h3 class="font-semibold">Inserir Questão</h3>
-                                </button>` : ''}
-                                <button onclick="tela='historico';render()" class="bg-purple-500 text-white p-6 rounded-lg hover:bg-purple-600">
-                                    <h3 class="font-semibold">Histórico</h3>
-                                </button>
-                                <button onclick="gerarDOC()" class="bg-orange-500 text-white p-6 rounded-lg hover:bg-orange-600">
-                                    <h3 class="font-semibold">Gerar DOC</h3>
-                                </button>
-                                <button onclick="gerarCSV()" class="bg-teal-500 text-white p-6 rounded-lg hover:bg-teal-600">
-                                    <h3 class="font-semibold">Gerar Excel</h3>
-                                </button>
-                            </div>
-                            <div class="mt-6 p-4 bg-gray-50 rounded text-center">
-                                <p class="text-sm">Total: ${questoes.length} questões | Matérias: ${materias.join(', ')}</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                renderMenu();
+            } else if (tela === 'selecionar') {
+                renderSelecionar();
+            } else if (tela === 'quiz') {
+                renderQuiz();
+            } else if (tela === 'resultado') {
+                renderResultado();
+            } else if (tela === 'historico') {
+                renderHistorico();
+            } else if (tela === 'inserir') {
+                renderInserir();
             }
         }
 
+        function renderCadastro() {
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen flex items-center justify-center p-4">
+                    <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+                        <h1 class="text-3xl font-bold text-center mb-6 text-blue-600">📚 Cadastro</h1>
+                        <select id="perfil" class="w-full p-3 border rounded mb-4" onchange="toggleProfessor()">
+                            <option value="aluno">👨‍🎓 Aluno</option>
+                            <option value="professor">👨‍🏫 Professor</option>
+                        </select>
+                        <input type="text" id="nome" placeholder="Nome completo" class="w-full p-3 border rounded mb-4">
+                        <input type="text" id="usuario" placeholder="Usuário" class="w-full p-3 border rounded mb-4">
+                        <div id="divProfessor">
+                            <input type="text" id="professor" placeholder="Professor Responsável" class="w-full p-3 border rounded mb-4 bg-blue-50">
+                        </div>
+                        <input type="password" id="senha" placeholder="Senha" class="w-full p-3 border rounded mb-4">
+                        <input type="password" id="senha2" placeholder="Confirmar senha" class="w-full p-3 border rounded mb-4">
+                        <button onclick="cadastrar()" class="w-full bg-blue-500 text-white p-3 rounded font-semibold hover:bg-blue-600">Criar Conta</button>
+                        <button onclick="tela='login';render()" class="w-full text-blue-500 mt-4 hover:underline">Já tenho conta - Fazer Login</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleProfessor() {
+            const perfil = document.getElementById('perfil').value;
+            const div = document.getElementById('divProfessor');
+            div.style.display = perfil === 'aluno' ? 'block' : 'none';
+        }
+
+        function renderLogin() {
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen flex items-center justify-center p-4">
+                    <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+                        <h1 class="text-3xl font-bold text-center mb-6 text-blue-600">🔐 Login</h1>
+                        <input type="text" id="usuario" placeholder="Usuário" class="w-full p-3 border rounded mb-4">
+                        <input type="password" id="senha" placeholder="Senha" class="w-full p-3 border rounded mb-4">
+                        <button onclick="login()" class="w-full bg-blue-500 text-white p-3 rounded font-semibold hover:bg-blue-600">Entrar</button>
+                        <button onclick="tela='cadastro';render()" class="w-full text-blue-500 mt-4 hover:underline">Criar nova conta</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMenu() {
+            const materias = [...new Set(questoes.map(q => q.materia))];
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen p-4">
+                    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+                        <div class="flex justify-between items-center mb-6 p-4 bg-blue-50 rounded">
+                            <div>
+                                <h2 class="text-lg font-semibold">${usuarioLogado.nome}</h2>
+                                <p class="text-sm text-gray-600">@${usuarioLogado.usuario} • ${usuarioLogado.perfil === 'professor' ? '👨‍🏫 Professor' : '👨‍🎓 Aluno'}</p>
+                                ${usuarioLogado.professor ? `<p class="text-xs text-gray-500">Prof: ${usuarioLogado.professor}</p>` : ''}
+                            </div>
+                            <button onclick="sair()" class="px-4 py-2 text-red-600 border border-red-600 rounded hover:bg-red-50">Sair</button>
+                        </div>
+                        <h1 class="text-3xl font-bold text-center mb-8">📖 Sistema de Quiz</h1>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onclick="tela='selecionar';render()" class="bg-blue-500 text-white p-6 rounded-lg hover:bg-blue-600 transition">
+                                <div class="text-4xl mb-2">📝</div>
+                                <h3 class="font-semibold text-lg">Fazer Quiz</h3>
+                                <p class="text-sm opacity-80">Responda questões</p>
+                            </button>
+                            ${usuarioLogado.perfil === 'professor' ? `
+                            <button onclick="tela='inserir';render()" class="bg-green-500 text-white p-6 rounded-lg hover:bg-green-600 transition">
+                                <div class="text-4xl mb-2">➕</div>
+                                <h3 class="font-semibold text-lg">Inserir Questão</h3>
+                                <p class="text-sm opacity-80">Adicionar nova questão</p>
+                            </button>` : ''}
+                            <button onclick="tela='historico';render()" class="bg-purple-500 text-white p-6 rounded-lg hover:bg-purple-600 transition">
+                                <div class="text-4xl mb-2">📊</div>
+                                <h3 class="font-semibold text-lg">Histórico</h3>
+                                <p class="text-sm opacity-80">Ver resultados</p>
+                            </button>
+                            <button onclick="gerarDOC()" class="bg-orange-500 text-white p-6 rounded-lg hover:bg-orange-600 transition">
+                                <div class="text-4xl mb-2">📄</div>
+                                <h3 class="font-semibold text-lg">Gerar DOC</h3>
+                                <p class="text-sm opacity-80">Relatório Word</p>
+                            </button>
+                            <button onclick="gerarCSV()" class="bg-teal-500 text-white p-6 rounded-lg hover:bg-teal-600 transition">
+                                <div class="text-4xl mb-2">📊</div>
+                                <h3 class="font-semibold text-lg">Gerar Excel</h3>
+                                <p class="text-sm opacity-80">Planilha CSV</p>
+                            </button>
+                        </div>
+                        <div class="mt-6 p-4 bg-gray-50 rounded text-center">
+                            <p class="text-sm text-gray-600">📚 Total: <strong>${questoes.length}</strong> questões | Matérias: <strong>${materias.join(', ')}</strong></p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSelecionar() {
+            const materias = [...new Set(questoes.map(q => q.materia))];
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen p-4">
+                    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+                        <h1 class="text-2xl font-bold mb-6">📚 Selecione a Matéria</h1>
+                        <div class="grid grid-cols-1 gap-3">
+                            ${materias.map(m => {
+                                const qtd = questoes.filter(q => q.materia === m).length;
+                                return `<button onclick="iniciarQuiz('${m}')" class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-left">
+                                    <h3 class="font-semibold text-lg">${m}</h3>
+                                    <p class="text-sm text-gray-600">${qtd} questão${qtd > 1 ? 'ões' : ''} disponível${qtd > 1 ? 'is' : ''}</p>
+                                </button>`;
+                            }).join('')}
+                        </div>
+                        <button onclick="tela='menu';render()" class="w-full mt-6 p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50">Voltar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderQuiz() {
+            const q = quizAtual.questoes[quizAtual.indice];
+            const progresso = Math.round(((quizAtual.indice + 1) / quizAtual.questoes.length) * 100);
+            
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen p-4">
+                    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm text-gray-600 mb-2">
+                                <span>Questão ${quizAtual.indice + 1} de ${quizAtual.questoes.length}</span>
+                                <span>${progresso}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full transition-all" style="width: ${progresso}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6 p-4 bg-blue-50 rounded-lg">
+                            <h2 class="text-xl font-semibold">${q.pergunta}</h2>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            ${Object.keys(q.opcoes).map(k => `
+                                <button onclick="responder('${k}')" class="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-left">
+                                    <span class="font-semibold">${k.toUpperCase()}) </span>${q.opcoes[k]}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderResultado() {
+            const acertos = quizAtual.respostas.filter(r => r.correta).length;
+            const total = quizAtual.questoes.length;
+            const perc = Math.round((acertos / total) * 100);
+            
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen p-4">
+                    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+                        <h1 class="text-3xl font-bold text-center mb-6">🎯 Resultado Final</h1>
+                        
+                        <div class="text-center mb-8 p-6 ${perc >= 70 ? 'bg-green-50' : 'bg-red-50'} rounded-lg">
+                            <div class="text-6xl font-bold ${perc >= 70 ? 'text-green-600' : 'text-red-600'}">${perc}%</div>
+                            <p class="text-xl mt-2">${acertos} de ${total} questões corretas</p>
+                            <p class="text-lg font-semibold mt-2">${perc >= 70 ? '✅ Aprovado!' : '❌ Você pode melhorar!'}</p>
+                        </div>
+                        
+                        <div class="space-y-4 mb-6">
+                            ${quizAtual.respostas.map((r, i) => `
+                                <div class="p-4 border-2 ${r.correta ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'} rounded-lg">
+                                    <p class="font-semibold mb-2">${i + 1}. ${r.pergunta}</p>
+                                    <p class="text-sm">Sua resposta: <span class="font-semibold">${r.resposta}</span> ${r.correta ? '✅' : '❌'}</p>
+                                    ${!r.correta ? `<p class="text-sm text-green-700 mt-1">Correta: <span class="font-semibold">${r.opcaoCorreta}</span></p>` : ''}
+                                    <p class="text-sm text-gray-600 mt-2 italic">${r.explicacao}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="tela='selecionar';render()" class="flex-1 p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Novo Quiz</button>
+                            <button onclick="tela='menu';render()" class="flex-1 p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50">Menu</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderHistorico() {
+            const meusRegistros = usuarioLogado.perfil === 'professor' 
+                ? historico 
+                : historico.filter(h => h.login === usuarioLogado.usuario);
+            
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen p-4">
+                    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+                        <h1 class="text-2xl font-bold mb-6">📊 Histórico de Resultados</h1>
+                        
+                        ${meusRegistros.length === 0 ? `
+                            <p class="text-center text-gray-500 py-8">Nenhum resultado ainda. Faça um quiz!</p>
+                        ` : `
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-gray-100">
+                                        <tr>
+                                            <th class="p-3 text-left">Data</th>
+                                            <th class="p-3 text-left">Aluno</th>
+                                            <th class="p-3 text-left">Matéria</th>
+                                            <th class="p-3 text-center">Acertos</th>
+                                            <th class="p-3 text-center">%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${meusRegistros.slice().reverse().map(h => `
+                                            <tr class="border-b hover:bg-gray-50">
+                                                <td class="p-3">${h.data}</td>
+                                                <td class="p-3">${h.usuario}</td>
+                                                <td class="p-3">${h.materia}</td>
+                                                <td class="p-3 text-center">${h.acertos}/${h.total}</td>
+                                                <td class="p-3 text-center"><span class="px-2 py-1 rounded ${h.perc >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${h.perc}%</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `}
+                        
+                        <button onclick="tela='menu';render()" class="w-full mt-6 p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50">Voltar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderInserir() {
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen p-4">
+                    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+                        <h1 class="text-2xl font-bold mb-6">➕ Inserir Nova Questão</h1>
+                        
+                        <input type="text" id="materia" placeholder="Matéria (ex: História)" class="w-full p-3 border rounded mb-4">
+                        <textarea id="pergunta" placeholder="Digite a pergunta" class="w-full p-3 border rounded mb-4" rows="3"></textarea>
+                        
+                        <div class="space-y-3 mb-4">
+                            <input type="text" id="opcaoA" placeholder="Opção A" class="w-full p-3 border rounded">
+                            <input type="text" id="opcaoB" placeholder="Opção B" class="w-full p-3 border rounded">
+                            <input type="text" id="opcaoC" placeholder="Opção C" class="w-full p-3 border rounded">
+                            <input type="text" id="opcaoD" placeholder="Opção D" class="w-full p-3 border rounded">
+                        </div>
+                        
+                        <select id="correta" class="w-full p-3 border rounded mb-4">
+                            <option value="">Selecione a resposta correta</option>
+                            <option value="a">A</option>
+                            <option value="b">B</option>
+                            <option value="c">C</option>
+                            <option value="d">D</option>
+                        </select>
+                        
+                        <textarea id="explicacao" placeholder="Explicação da resposta" class="w-full p-3 border rounded mb-4" rows="2"></textarea>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="inserirQuestao()" class="flex-1 p-3 bg-green-500 text-white rounded-lg hover:bg-green-600">Salvar Questão</button>
+                            <button onclick="tela='menu';render()" class="flex-1 p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Funções
         function cadastrar() {
-            const nome = document.getElementById('nome').value;
-            const usuario = document.getElementById('usuario').value;
+            const nome = document.getElementById('nome').value.trim();
+            const usuario = document.getElementById('usuario').value.trim();
             const senha = document.getElementById('senha').value;
             const senha2 = document.getElementById('senha2').value;
             const perfil = document.getElementById('perfil').value;
-            const professor = document.getElementById('professor').value;
+            const professor = perfil === 'aluno' ? document.getElementById('professor').value.trim() : '';
 
             if (!nome || !usuario || !senha || !senha2) {
-                alert('Preencha todos os campos!');
+                alert('❌ Preencha todos os campos!');
                 return;
             }
             if (perfil === 'aluno' && !professor) {
-                alert('Informe o professor responsável!');
+                alert('❌ Informe o professor responsável!');
                 return;
             }
             if (senha !== senha2) {
-                alert('Senhas diferentes!');
+                alert('❌ As senhas não coincidem!');
+                return;
+            }
+            if (usuarios.find(u => u.usuario === usuario)) {
+                alert('❌ Usuário já existe!');
                 return;
             }
 
-            usuarios.push({id: Date.now(), nome, usuario, senha, perfil, professor});
+            usuarios.push({
+                id: Date.now(), 
+                nome, 
+                usuario, 
+                senha, 
+                perfil, 
+                professor: professor || ''
+            });
             salvar();
-            alert('Cadastro realizado!');
+            alert('✅ Cadastro realizado com sucesso!');
             tela = 'login';
             render();
         }
 
         function login() {
-            const usuario = document.getElementById('usuario').value;
+            const usuario = document.getElementById('usuario').value.trim();
             const senha = document.getElementById('senha').value;
             const user = usuarios.find(u => u.usuario === usuario && u.senha === senha);
             
@@ -137,58 +361,172 @@
                 tela = 'menu';
                 render();
             } else {
-                alert('Usuário ou senha incorretos!');
+                alert('❌ Usuário ou senha incorretos!');
             }
         }
 
         function sair() {
-            usuarioLogado = null;
-            tela = 'cadastro';
+            if (confirm('Deseja realmente sair?')) {
+                usuarioLogado = null;
+                tela = 'cadastro';
+                render();
+            }
+        }
+
+        function iniciarQuiz(materia) {
+            const questoesFiltradas = questoes.filter(q => q.materia === materia);
+            quizAtual = {
+                materia: materia,
+                questoes: questoesFiltradas,
+                indice: 0,
+                respostas: []
+            };
+            tela = 'quiz';
+            render();
+        }
+
+        function responder(opcao) {
+            const q = quizAtual.questoes[quizAtual.indice];
+            const correta = opcao === q.correta;
+            
+            quizAtual.respostas.push({
+                pergunta: q.pergunta,
+                resposta: q.opcoes[opcao],
+                opcaoCorreta: q.opcoes[q.correta],
+                correta: correta,
+                explicacao: q.explicacao
+            });
+            
+            quizAtual.indice++;
+            
+            if (quizAtual.indice < quizAtual.questoes.length) {
+                render();
+            } else {
+                finalizarQuiz();
+            }
+        }
+
+        function finalizarQuiz() {
+            const acertos = quizAtual.respostas.filter(r => r.correta).length;
+            const total = quizAtual.questoes.length;
+            const perc = Math.round((acertos / total) * 100);
+            
+            const registro = {
+                data: new Date().toLocaleString('pt-BR'),
+                usuario: usuarioLogado.nome,
+                login: usuarioLogado.usuario,
+                perfil: usuarioLogado.perfil,
+                professor: usuarioLogado.professor || usuarioLogado.nome,
+                materia: quizAtual.materia,
+                total: total,
+                acertos: acertos,
+                perc: perc
+            };
+            
+            historico.push(registro);
+            salvar();
+            
+            tela = 'resultado';
+            render();
+        }
+
+        function inserirQuestao() {
+            const materia = document.getElementById('materia').value.trim();
+            const pergunta = document.getElementById('pergunta').value.trim();
+            const opcaoA = document.getElementById('opcaoA').value.trim();
+            const opcaoB = document.getElementById('opcaoB').value.trim();
+            const opcaoC = document.getElementById('opcaoC').value.trim();
+            const opcaoD = document.getElementById('opcaoD').value.trim();
+            const correta = document.getElementById('correta').value;
+            const explicacao = document.getElementById('explicacao').value.trim();
+
+            if (!materia || !pergunta || !opcaoA || !opcaoB || !opcaoC || !opcaoD || !correta || !explicacao) {
+                alert('❌ Preencha todos os campos!');
+                return;
+            }
+
+            const novaQuestao = {
+                id: Date.now(),
+                materia,
+                pergunta,
+                opcoes: {a: opcaoA, b: opcaoB, c: opcaoC, d: opcaoD},
+                correta,
+                explicacao
+            };
+
+            questoes.push(novaQuestao);
+            salvar();
+            alert('✅ Questão inserida com sucesso!');
+            tela = 'menu';
             render();
         }
 
         function gerarDOC() {
-            const ultimo = historico.find(h => h.login === usuarioLogado.usuario);
-            if (!ultimo) {
-                alert('Faça um quiz primeiro!');
+            const meusRegistros = usuarioLogado.perfil === 'professor' 
+                ? historico 
+                : historico.filter(h => h.login === usuarioLogado.usuario);
+                
+            if (meusRegistros.length === 0) {
+                alert('❌ Faça um quiz primeiro!');
                 return;
             }
-            let html = '<html><head><meta charset="utf-8"><title>Relatorio</title></head><body style="font-family:Arial;margin:40px;">';
-            html += '<h1 style="text-align:center;">RELATÓRIO QUIZ</h1>';
+            
+            const ultimo = meusRegistros[meusRegistros.length - 1];
+            let html = '<html><head><meta charset="utf-8"><title>Relatório Quiz</title></head>';
+            html += '<body style="font-family:Arial;margin:40px;">';
+            html += '<h1 style="text-align:center;color:#2563eb;">RELATÓRIO DE DESEMPENHO - QUIZ</h1>';
+            html += '<hr style="margin:20px 0;">';
             html += '<p><strong>Nome:</strong> ' + ultimo.usuario + '</p>';
+            html += '<p><strong>Usuário:</strong> @' + ultimo.login + '</p>';
+            html += '<p><strong>Perfil:</strong> ' + ultimo.perfil + '</p>';
             html += '<p><strong>Professor:</strong> ' + ultimo.professor + '</p>';
+            html += '<p><strong>Matéria:</strong> ' + ultimo.materia + '</p>';
             html += '<p><strong>Data:</strong> ' + ultimo.data + '</p>';
-            html += '<p><strong>Percentual:</strong> ' + ultimo.perc + '%</p>';
+            html += '<hr style="margin:20px 0;">';
+            html += '<h2 style="color:#2563eb;">Resultado:</h2>';
+            html += '<p><strong>Total de Questões:</strong> ' + ultimo.total + '</p>';
+            html += '<p><strong>Acertos:</strong> ' + ultimo.acertos + '</p>';
+            html += '<p><strong>Percentual:</strong> <span style="font-size:24px;color:' + (ultimo.perc >= 70 ? 'green' : 'red') + ';">' + ultimo.perc + '%</span></p>';
+            html += '<p><strong>Status:</strong> ' + (ultimo.perc >= 70 ? '✅ APROVADO' : '❌ PRECISA MELHORAR') + '</p>';
             html += '</body></html>';
             
-            const blob = new Blob([html], {type: 'application/msword'});
+            const blob = new Blob(['\ufeff' + html], {type: 'application/msword'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Relatorio.doc';
+            a.download = 'Relatorio_Quiz_' + ultimo.login + '_' + Date.now() + '.doc';
             a.click();
-            alert('DOC gerado!');
+            URL.revokeObjectURL(url);
+            alert('✅ Relatório DOC gerado com sucesso!');
         }
 
         function gerarCSV() {
-            if (historico.length === 0) {
-                alert('Sem histórico!');
+            const meusRegistros = usuarioLogado.perfil === 'professor' 
+                ? historico 
+                : historico.filter(h => h.login === usuarioLogado.usuario);
+                
+            if (meusRegistros.length === 0) {
+                alert('❌ Sem histórico para gerar planilha!');
                 return;
             }
-            let csv = 'Data,Nome,Usuario,Perfil,Professor,Materia,Total,Acertos,Percentual\n';
-            historico.forEach(h => {
-                csv += `"${h.data}","${h.usuario}","${h.login}","${h.perfil}","${h.professor}","${h.materia}",${h.total},${h.acertos},${h.perc}\n`;
+            
+            let csv = 'Data,Nome,Usuario,Perfil,Professor,Materia,Total Questoes,Acertos,Percentual,Status\n';
+            meusRegistros.forEach(h => {
+                const status = h.perc >= 70 ? 'Aprovado' : 'Precisa Melhorar';
+                csv += `"${h.data}","${h.usuario}","${h.login}","${h.perfil}","${h.professor}","${h.materia}",${h.total},${h.acertos},${h.perc}%,"${status}"\n`;
             });
-            const blob = new Blob([csv], {type: 'text/csv'});
+            
+            const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8;'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'historico.csv';
+            a.download = 'Historico_Quiz_' + usuarioLogado.usuario + '_' + Date.now() + '.csv';
             a.click();
-            alert('Planilha gerada!');
+            URL.revokeObjectURL(url);
+            alert('✅ Planilha CSV gerada com sucesso!');
         }
 
-        // Iniciar
+        // Iniciar aplicação
         render();
     </script>
 </body>
